@@ -1,4 +1,6 @@
-import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY } from './instruction';
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED nstack
+
+import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED } from './instruction';
 
 export default function expressionToString(tokens, toJS) {
   var nstack = [];
@@ -109,15 +111,18 @@ export default function expressionToString(tokens, toJS) {
       nstack.push('(' + expressionToString(item.value, toJS) + ')');
     } else if (type === IENDSTATEMENT) {
       // eslint-disable no-empty
+    } else if (type === IUNDEFINED) {
+      // The value of the undefined reserved work is undefined.
+      nstack.push('undefined');
     } else {
       throw new Error('invalid Expression');
     }
   }
   if (nstack.length > 1) {
     if (toJS) {
-      nstack = [ nstack.join(',') ];
+      nstack = [nstack.join(',')];
     } else {
-      nstack = [ nstack.join(';') ];
+      nstack = [nstack.join(';')];
     }
   }
   return String(nstack[0]);

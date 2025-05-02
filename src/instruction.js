@@ -1,3 +1,5 @@
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE
+
 export var INUMBER = 'INUMBER';
 export var IOP1 = 'IOP1';
 export var IOP2 = 'IOP2';
@@ -11,10 +13,22 @@ export var IEXPREVAL = 'IEXPREVAL';
 export var IMEMBER = 'IMEMBER';
 export var IENDSTATEMENT = 'IENDSTATEMENT';
 export var IARRAY = 'IARRAY';
+export var IUNDEFINED = 'IUNDEFINED';
+export var ICASECOND = 'ICASECOND';
+export var ICASEMATCH = 'ICASEMATCH';
+export var IWHENCOND = 'IWHENCOND';
+export var IWHENMATCH = 'IWHENMATCH';
+export var ICASEELSE = 'ICASEELSE';
 
 export function Instruction(type, value) {
   this.type = type;
-  this.value = (value !== undefined && value !== null) ? value : 0;
+  if (type === IUNDEFINED) {
+    this.value = undefined;
+  } else {
+    // this.value = (value !== undefined && value !== null) ? value : 0;
+    // We want to allow undefined values.
+    this.value = (value !== null) ? value : 0;
+  }
 }
 
 Instruction.prototype.toString = function () {
@@ -35,6 +49,18 @@ Instruction.prototype.toString = function () {
       return 'ARRAY ' + this.value;
     case IMEMBER:
       return '.' + this.value;
+    case IUNDEFINED:
+      return 'undefined';
+    case ICASECOND:
+      return `CASE ${this.value}`;
+    case ICASEMATCH:
+      return `CASE ${this.value}`;
+    case IWHENCOND:
+      return `WHEN ${this.value}`;
+    case IWHENMATCH:
+      return `WHEN ${this.value}`;
+    case ICASEELSE:
+      return `ELSE`;
     default:
       return 'Invalid Instruction';
   }

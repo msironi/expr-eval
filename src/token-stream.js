@@ -1,7 +1,10 @@
-import { Token, TEOF, TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON } from './token';
+// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD
+
+import { Token, TEOF, TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TKEYWORD } from './token';
 
 export function TokenStream(parser, expression) {
   this.pos = 0;
+  this.keywords = parser.keywords;
   this.current = null;
   this.unaryOps = parser.unaryOps;
   this.binaryOps = parser.binaryOps;
@@ -161,13 +164,19 @@ TokenStream.prototype.isName = function () {
   var startPos = this.pos;
   var i = startPos;
   var hasLetter = false;
+  var leading$ = false;
   for (; i < this.expression.length; i++) {
     var c = this.expression.charAt(i);
     if (c.toUpperCase() === c.toLowerCase()) {
       if (i === this.pos && (c === '$' || c === '_')) {
         if (c === '_') {
           hasLetter = true;
+        } else {
+          leading$ = true;
         }
+        continue;
+      } else if (i === startPos + 1 && leading$ && c === '$') {
+        // allow $$name tokens.
         continue;
       } else if (i === this.pos || !hasLetter || (c !== '_' && (c < '0' || c > '9'))) {
         break;
@@ -178,7 +187,11 @@ TokenStream.prototype.isName = function () {
   }
   if (hasLetter) {
     var str = this.expression.substring(startPos, i);
-    this.current = this.newToken(TNAME, str);
+    if (this.keywords.includes(str)) {
+      this.current = this.newToken(TKEYWORD, str);
+    } else {
+      this.current = this.newToken(TNAME, str);
+    }
     this.pos += str.length;
     return true;
   }
@@ -376,8 +389,22 @@ TokenStream.prototype.isOperator = function () {
   var startPos = this.pos;
   var c = this.expression.charAt(this.pos);
 
-  if (c === '+' || c === '-' || c === '*' || c === '/' || c === '%' || c === '^' || c === '?' || c === ':' || c === '.') {
+  if (c === '+' || c === '-' || c === '*' || c === '/' || c === '%' || c === '^' || c === ':' || c === '.') {
     this.current = this.newToken(TOP, c);
+  } else if (c === '?') {
+    // ? could be a ternary operator a ? b : c or a coalesce operator a ?? b, we need to look ahead
+    // to figure out which one it is.
+    if (this.expression.charAt(this.pos + 1) === '?') {
+      if (this.isOperatorEnabled('??')) {
+        this.current = this.newToken(TOP, '??');
+        this.pos++;
+      } else {
+        // We have a ?? operator but it has been disabled.
+        return false;
+      }
+    } else {
+      this.current = this.newToken(TOP, c);
+    }
   } else if (c === '∙' || c === '•') {
     this.current = this.newToken(TOP, '*');
   } else if (c === '>') {
@@ -414,6 +441,13 @@ TokenStream.prototype.isOperator = function () {
       this.pos++;
     } else {
       this.current = this.newToken(TOP, c);
+    }
+  } else if (c === 'a' && this.expression.substring(this.pos, this.pos + 3) === 'as ') {
+    if (this.isOperatorEnabled('as')) {
+      this.current = this.newToken(TOP, 'as');
+      this.pos++;
+    } else {
+      return false;
     }
   } else {
     return false;

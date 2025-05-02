@@ -1,7 +1,11 @@
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable quote-props */
+// cSpell:words TEOF fndef
 import { TEOF } from './token';
 import { TokenStream } from './token-stream';
 import { ParserState } from './parser-state';
 import { Expression } from './expression';
+import { atan2, condition, fac, filter, fold, gamma, hypot, indexOf, join, map, max, min, pow, random, roundTo, sum } from './functions';
 import {
   add,
   sub,
@@ -15,79 +19,90 @@ import {
   lessThan,
   greaterThanEqual,
   lessThanEqual,
+  setVar,
+  arrayIndex,
   andOperator,
   orOperator,
   inOperator,
+  coalesce,
+  asOperator
+} from './functions-binary-ops';
+import {
+  pos,
+  abs,
+  acos,
   sinh,
-  cosh,
   tanh,
+  asin,
   asinh,
   acosh,
+  atan,
   atanh,
+  cbrt,
+  ceil,
+  cos,
+  cosh,
+  exp,
+  floor,
+  log,
   log10,
   neg,
   not,
+  round,
+  sin,
+  sqrt,
+  tan,
   trunc,
-  random,
-  factorial,
-  gamma,
-  stringOrArrayLength,
-  hypot,
-  condition,
-  roundTo,
-  setVar,
-  arrayIndex,
-  max,
-  min,
-  arrayMap,
-  arrayFold,
-  arrayFilter,
-  stringOrArrayIndexOf,
-  arrayJoin,
+  length,
   sign,
-  cbrt,
   expm1,
   log1p,
-  log2,
-  sum
-} from './functions';
+  log2
+} from './functions-unary-ops';
 
 export function Parser(options) {
-  this.options = options || {};
+  this.options = options || { operators: { conversion: false } };
+  this.keywords = [
+    'case',
+    'when',
+    'then',
+    'else',
+    'end'
+  ];
   this.unaryOps = {
-    sin: Math.sin,
-    cos: Math.cos,
-    tan: Math.tan,
-    asin: Math.asin,
-    acos: Math.acos,
-    atan: Math.atan,
-    sinh: Math.sinh || sinh,
-    cosh: Math.cosh || cosh,
-    tanh: Math.tanh || tanh,
-    asinh: Math.asinh || asinh,
-    acosh: Math.acosh || acosh,
-    atanh: Math.atanh || atanh,
-    sqrt: Math.sqrt,
-    cbrt: Math.cbrt || cbrt,
-    log: Math.log,
-    log2: Math.log2 || log2,
-    ln: Math.log,
-    lg: Math.log10 || log10,
-    log10: Math.log10 || log10,
-    expm1: Math.expm1 || expm1,
-    log1p: Math.log1p || log1p,
-    abs: Math.abs,
-    ceil: Math.ceil,
-    floor: Math.floor,
-    round: Math.round,
-    trunc: Math.trunc || trunc,
     '-': neg,
-    '+': Number,
-    exp: Math.exp,
+    '+': pos,
+    '!': fac,
+    abs: abs,
+    acos: acos,
+    acosh: acosh,
+    asin: asin,
+    asinh: asinh,
+    atan: atan,
+    atanh: atanh,
+    cbrt: cbrt,
+    ceil: ceil,
+    cos: cos,
+    cosh: cosh,
+    exp: exp,
+    expm1: expm1,
+    floor: floor,
+    length: length,
+    lg: log10,
+    ln: log,
+    log: log,
+    log1p: log1p,
+    log2: log2,
+    log10: log10,
     not: not,
-    length: stringOrArrayLength,
-    '!': factorial,
-    sign: Math.sign || sign
+    round: round,
+    sign: sign,
+    sin: sin,
+    sinh: sinh,
+    sqrt: sqrt,
+    tan: tan,
+    tanh: tanh,
+    trunc: trunc
   };
 
   this.binaryOps = {
@@ -96,7 +111,7 @@ export function Parser(options) {
     '*': mul,
     '/': div,
     '%': mod,
-    '^': Math.pow,
+    '^': pow,
     '||': concat,
     '==': equal,
     '!=': notEqual,
@@ -104,11 +119,13 @@ export function Parser(options) {
     '<': lessThan,
     '>=': greaterThanEqual,
     '<=': lessThanEqual,
-    and: andOperator,
-    or: orOperator,
-    'in': inOperator,
     '=': setVar,
-    '[': arrayIndex
+    '[': arrayIndex,
+    and: andOperator,
+    in: inOperator,
+    or: orOperator,
+    '??': coalesce,
+    'as': asOperator
   };
 
   this.ternaryOps = {
@@ -116,22 +133,22 @@ export function Parser(options) {
   };
 
   this.functions = {
-    random: random,
-    fac: factorial,
-    min: min,
-    max: max,
-    hypot: Math.hypot || hypot,
-    pyt: Math.hypot || hypot, // backward compat
-    pow: Math.pow,
-    atan2: Math.atan2,
-    'if': condition,
+    atan2: atan2,
+    fac: fac,
+    filter: filter,
+    fold: fold,
     gamma: gamma,
+    hypot: hypot,
+    indexOf: indexOf,
+    if: condition,
+    join: join,
+    map: map,
+    max: max,
+    min: min,
+    pow: pow,
+    pyt: hypot, // backward compat
+    random: random,
     roundTo: roundTo,
-    map: arrayMap,
-    fold: arrayFold,
-    filter: arrayFilter,
-    indexOf: stringOrArrayIndexOf,
-    join: arrayJoin,
     sum: sum
   };
 
@@ -141,6 +158,17 @@ export function Parser(options) {
     'true': true,
     'false': false
   };
+
+  // A callback that evaluate will call if it doesn't recognize a variable.  The default
+  // implementation returns undefined to indicate that it won't resolve the variable.  This
+  // gives the code using the Parser a chance to resolve unrecognized variables to add support for
+  // things like $myVar, $$myVar, %myVar%, etc.  For example when an expression is evaluated a variables
+  // object could be passed in and $myVar could resolve to a property of that object.
+  // The return value can be any of:
+  // - { alias: "xxx" } the token is an alias for xxx, i.e. use xxx as the token.
+  // - { value: <something> } use <something> as the value for the variable
+  // - any other value is treated as the value to use for the token.
+  this.resolve = _token => undefined;
 }
 
 Parser.prototype.parse = function (expr) {
@@ -193,7 +221,9 @@ var optionNameMap = {
   ':': 'conditional',
   '=': 'assignment',
   '[': 'array',
-  '()=': 'fndef'
+  '()=': 'fndef',
+  '??': 'coalesce',
+  'as': 'conversion'
 };
 
 function getOptionName(op) {

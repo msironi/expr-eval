@@ -1,5 +1,8 @@
-import { TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TEOF } from './token';
-import { Instruction, INUMBER, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, ternaryInstruction, binaryInstruction, unaryInstruction } from './instruction';
+// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH IWHENMATCH ICASEELSE ICASECOND IWHENCOND
+
+import { TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TEOF, TKEYWORD } from './token';
+import { Instruction, INUMBER, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ternaryInstruction, binaryInstruction, unaryInstruction, IWHENMATCH, ICASEMATCH, ICASEELSE, ICASECOND, IWHENCOND } from './instruction';
 import contains from './contains';
 
 export function ParserState(parser, tokenStream, options) {
@@ -64,7 +67,12 @@ ParserState.prototype.parseAtom = function (instr) {
   }
 
   if (this.accept(TNAME) || this.accept(TOP, isPrefixOperator)) {
-    instr.push(new Instruction(IVAR, this.current.value));
+    if (this.current.value === 'undefined') {
+      // undefined is a reserved work that evaluates to JavaScript undefined.
+      instr.push(new Instruction(IUNDEFINED));
+    } else {
+      instr.push(new Instruction(IVAR, this.current.value));
+    }
   } else if (this.accept(TNUMBER)) {
     instr.push(new Instruction(INUMBER, this.current.value));
   } else if (this.accept(TSTRING)) {
@@ -79,6 +87,8 @@ ParserState.prototype.parseAtom = function (instr) {
       var argCount = this.parseArrayList(instr);
       instr.push(new Instruction(IARRAY, argCount));
     }
+  } else if (this.accept(TKEYWORD)) {
+    this.parseKeywordExpression(instr);
   } else {
     throw new Error('unexpected ' + this.nextToken);
   }
@@ -219,8 +229,20 @@ ParserState.prototype.parseAddSub = function (instr) {
 var TERM_OPERATORS = ['*', '/', '%'];
 
 ParserState.prototype.parseTerm = function (instr) {
-  this.parseFactor(instr);
+  // this.parseFactor(instr);
+  this.parseCoalesceExpression(instr);
   while (this.accept(TOP, TERM_OPERATORS)) {
+    var op = this.current;
+    this.parseFactor(instr);
+    instr.push(binaryInstruction(op.value));
+  }
+};
+
+var COALESCE_OPERATORS = ['??', 'as'];
+
+ParserState.prototype.parseCoalesceExpression = function (instr) {
+  this.parseFactor(instr);
+  while (this.accept(TOP, COALESCE_OPERATORS)) {
     var op = this.current;
     this.parseFactor(instr);
     instr.push(binaryInstruction(op.value));
@@ -331,5 +353,76 @@ ParserState.prototype.parseMemberExpression = function (instr) {
     } else {
       throw new Error('unexpected symbol: ' + op.value);
     }
+  }
+};
+
+ParserState.prototype.parseKeywordExpression = function (instr) {
+  if (this.current.value === 'case') {
+    this.parseCaseWhen(instr);
+  } else {
+    throw new Error(`unexpected keyword: ${this.current.value}`);
+  }
+};
+
+ParserState.prototype.parseCaseWhen = function (instr) {
+  /*
+    cases look like:
+
+    case $input
+      when $match1 then $value1
+      when $match2 then $value2
+      else $value3
+    end
+
+    OR
+
+    case
+      when $expr1 then $value1
+      when $expr2 then $value2
+      else $value3
+    end
+
+    The first case is comparing the match values to the input, the second case is essentially an if/else/if chain.
+
+    The parse tree uses postfix notation so the trees for the above should look like
+
+    $input $match1 $value1 WHEN $match2 $value2 WHEN $value3 ELSE
+    $expr1 $value1 WHEN $expr2 $value2 WHEN $value3 ELSE
+  */
+  // Before doing anything we need to look a head at the next token to see whether it is
+  // a WHEN or something else; if it is a WHEN then we have a case with no input (ICASECOND)
+  // vs. a case with input (ICASEMATCH).
+  const caseWithInput = this.nextToken.type !== TKEYWORD;
+  const caseInstruction = caseWithInput ? ICASEMATCH : ICASECOND;
+  const whenInstruction = caseWithInput ? IWHENMATCH : IWHENCOND;
+
+  // Parse the expression for the value being checked by the case.
+  if (caseWithInput) {
+    this.parseConditionalExpression(instr);
+  }
+
+  // Parse all the when xxx then yyy conditions.
+  var count = 0;
+  while (this.accept(TKEYWORD, 'when')) {
+    this.parseConditionalExpression(instr);
+    if (this.accept(TKEYWORD, 'then')) {
+      this.parseConditionalExpression(instr);
+      instr.push(new Instruction(whenInstruction, count++));
+    } else {
+      throw new Error(`case block missing when`);
+    }
+  }
+
+  // Parse the optional else which gets added to the parse tree as when true then yyy
+  if (this.accept(TKEYWORD, 'else')) {
+    this.parseConditionalExpression(instr);
+    instr.push(new Instruction(ICASEELSE, count++));
+  }
+
+  // Parse the end of the case.
+  if (this.accept(TKEYWORD, 'end')) {
+    instr.push(new Instruction(caseInstruction, count));
+  } else {
+    throw new Error(`invalid case block`);
   }
 };

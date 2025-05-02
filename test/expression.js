@@ -1,3 +1,4 @@
+/* eslint-disable array-bracket-spacing */
 /* global describe, it */
 
 'use strict';
@@ -261,6 +262,314 @@ describe('Expression', function () {
     it('3 and 6 ? 45 > 5 * 11 ? 3 * 3 : 2.4 : 0', function () {
       assert.strictEqual(Parser.evaluate('3 and 6 ? 45 > 5 * 11 ? 3 * 3 : 2.4 : 0'), 2.4);
     });
+
+    it('external functions', function () {
+      const parser = new Parser();
+      parser.functions.doIt = function (value) {
+        return value + value;
+      };
+      assert.strictEqual(parser.evaluate('doIt(2)'), 4);
+    });
+
+    it('external async functions', async function () {
+      const parser = new Parser();
+      parser.functions.doIt = function (value) {
+        return new Promise((resolve) => setTimeout(() => resolve(value + value), 100));
+      };
+      const promise = parser.evaluate('x = doIt(2); x + 3');
+      // Since doIt returns a promise evaluate should also return a promise.
+      assert.strictEqual(typeof promise === 'object' && typeof promise.then === 'function', true);
+      // To get the final expression value we have to await on the promise.
+      const result = await promise;
+      assert.strictEqual(result, 7);
+
+      assert.strictEqual(await parser.evaluate('doIt(3) + 4'), 10);
+    });
+
+    it('should support custom variable resolution using aliases', function () {
+      const parser = new Parser();
+      const obj = { variables: { a: 5, b: 1 } };
+      parser.resolve = token =>
+        token === '$v' ? { alias: 'variables' } : undefined;
+      assert.strictEqual(parser.evaluate('$v.a + variables.b', obj), 6);
+    });
+
+    it('should throw an undefined variable error if custom variable resolution returns an alias that does not exist', function () {
+      const parser = new Parser();
+      const obj = { variables: { a: 5, b: 1 } };
+      parser.resolve = token =>
+        token === '$v' ? { alias: 'abc' } : undefined;
+      assert.throws(function () { parser.evaluate('$v.a + variables.b', obj); }, /undefined variable: \$v/);
+    });
+
+    it('should support custom variable resolution using values', function () {
+      const parser = new Parser();
+      const obj = { variables: { a: 5, b: 1 } };
+      parser.resolve = token =>
+        token.startsWith('$') ? { value: obj.variables[token.substring(1)] } : undefined;
+      assert.strictEqual(parser.evaluate('$a + $b'), 6);
+    });
+
+    it('should support custom variable resolution values of undefined', function () {
+      const parser = new Parser();
+      const obj = { variables: { a: 5, b: 1 } };
+      parser.resolve = token =>
+        token.startsWith('$') ? { value: obj.variables[token.substring(1)] } : undefined;
+      assert.strictEqual(parser.evaluate('$a + $c'), undefined);
+    });
+
+    it('should support child properties in custom variable resolution values', function () {
+      const parser = new Parser();
+      const obj = {
+        variables1: { a: 5, b: 1 },
+        variables2: { b: { c: 6 } }
+      };
+      parser.resolve = token => {
+        if (token.startsWith('$$')) {
+          return { value: obj.variables2[token.substring(2)] };
+        } else if (token.startsWith('$')) {
+          return { value: obj.variables1[token.substring(1)] };
+        } else {
+          return undefined;
+        }
+      };
+      assert.strictEqual(parser.evaluate('$b + $$b.c'), 7);
+    });
+
+    it('concatenate strings with + operator', function () {
+      const parser = new Parser();
+      assert.strictEqual(parser.evaluate('"abc" + "def" + "ghi"'), 'abcdefghi');
+    });
+
+    describe('?? operator', () => {
+      it('should succeed with variables set to undefined', function () {
+        assert.strictEqual(Parser.evaluate('x = undefined; x + 1'), undefined);
+        assert.strictEqual(Parser.evaluate('x = undefined; x ?? 3 + 1'), 4);
+      });
+      it('y = x ?? 2 + 4', function () {
+        assert.strictEqual(Parser.evaluate('y = x ?? 2 + 4', { x: undefined }), 6);
+        assert.strictEqual(Parser.evaluate('y = x ?? 2 + 4', { x: 3 }), 7);
+      });
+      it('(a / b * 10) ?? 0 (divide by 0)', function () {
+        assert.strictEqual(Parser.evaluate('(a / b * 10) ?? 0', { a: 5, b: 0 }), 0);
+      });
+      it('should be disabled by the coalesce option', () => {
+        const parser = new Parser({ operators: { coalesce: false } });
+        assert.throws(() => parser.evaluate('1 ?? 2'), /Unknown character/);
+      });
+    });
+
+    describe('as operator', () => {
+      it('should be disabled by default', function () {
+        assert.throws(() => Parser.evaluate('"1.6" as "abc"'));
+      });
+      it('"1.6" as "number"', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.strictEqual(parser.evaluate('"1.6" as "number"'), 1.6);
+      });
+      it('"1.6" as "int"', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.strictEqual(parser.evaluate('"1.6" as "int"'), 2);
+      });
+      it('"1.6" as "integer"', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.strictEqual(parser.evaluate('"1.6" as "integer"'), 2);
+      });
+      it('"1.6" as "boolean"', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.strictEqual(parser.evaluate('"1.6" as "boolean"'), true);
+      });
+      it('"" as "boolean"', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.strictEqual(parser.evaluate('"" as "boolean"'), false);
+      });
+      it('should throw an error for unknown right hand sides', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        assert.throws(() => parser.evaluate('"1.6" as "abc"'), /unknown type: abc/);
+      });
+      it('should allow operator overloading', function () {
+        const parser = new Parser({ operators: { conversion: true } });
+        parser.binaryOps.as = (a, _b) => a + '_suffix';
+        assert.strictEqual(parser.evaluate('"abc" as "suffix"'), 'abc_suffix');
+      });
+    });
+
+    describe('CASE statements', () => {
+      describe('switch style cases', () => {
+        it('empty case', function () {
+          const parser = new Parser();
+          const expr = `
+            case x
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), undefined);
+        });
+        it('no whens', function () {
+          const parser = new Parser();
+          const expr = `
+            case x
+              else 'too-big'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'too-big');
+        });
+        it('no else', function () {
+          const parser = new Parser();
+          const expr = `
+            case x
+              when 1 then 'one'
+              when 1+1 then 'two'
+              when 1+1+1 then 'three'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+          assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+          assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+          assert.strictEqual(parser.evaluate(expr, { x: 4 }), undefined);
+        });
+        it('simple case', function () {
+          const parser = new Parser();
+          const expr = `
+            case x
+              when 1 then 'one'
+              when 1+1 then 'two'
+              when 1+1+1 then 'three'
+              else 'too-big'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+          assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+          assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+          assert.strictEqual(parser.evaluate(expr, { x: 4 }), 'too-big');
+        });
+        it('case within a larger expression', function () {
+          const parser = new Parser();
+          const expr = `
+            case x
+              when "one" then 1
+              when "two" then 1+1
+              when "three" then 1+1+1
+              else 0
+            end * 5
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 'one' }), 5);
+          assert.strictEqual(parser.evaluate(expr, { x: 'two' }), 10);
+          assert.strictEqual(parser.evaluate(expr, { x: 'three' }), 15);
+          assert.strictEqual(parser.evaluate(expr, { x: 'four' }), 0);
+        });
+        it('expression variable assigned to a case', function () {
+          const parser = new Parser();
+          const expr = `
+            y = case x
+              when "one" then 1
+              when "two" then 2
+              when "three" then 3
+              else 0
+            end;
+            y * 5
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 'one' }), 5);
+          assert.strictEqual(parser.evaluate(expr, { x: 'two' }), 10);
+          assert.strictEqual(parser.evaluate(expr, { x: 'three' }), 15);
+          assert.strictEqual(parser.evaluate(expr, { x: 'four' }), 0);
+        });
+      });
+      describe('if/else/if style cases', () => {
+        it('empty case', function () {
+          const parser = new Parser();
+          const expr = `
+            case
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), undefined);
+        });
+        it('no whens', function () {
+          const parser = new Parser();
+          const expr = `
+            case
+              else 'too-big'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'too-big');
+        });
+        it('no else', function () {
+          const parser = new Parser();
+          const expr = `
+            case
+              when x == 1 then 'one'
+              when x == 1+1 then 'two'
+              when x == 1+1+1 then 'three'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+          assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+          assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+          assert.strictEqual(parser.evaluate(expr, { x: 4 }), undefined);
+        });
+        it('simple case', function () {
+          const parser = new Parser();
+          const expr = `
+            case
+              when x == 1 then 'one'
+              when x == 1+1 then 'two'
+              when x == 1+1+1 then 'three'
+              else 'too-big'
+            end
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+          assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+          assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+          assert.strictEqual(parser.evaluate(expr, { x: 4 }), 'too-big');
+        });
+        it('case within a larger expression', function () {
+          const parser = new Parser();
+          const expr = `
+            case
+              when x > y then "gt"
+              when x < y then "lt"
+              else "eq"
+            end + "$"
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 2, y: 1 }), 'gt$');
+          assert.strictEqual(parser.evaluate(expr, { x: 1, y: 2 }), 'lt$');
+          assert.strictEqual(parser.evaluate(expr, { x: 1, y: 1 }), 'eq$');
+        });
+        it('expression variable assigned to a case', function () {
+          const parser = new Parser();
+          const expr = `
+            y = case x
+              when "one" then 1
+              when "two" then 2
+              when "three" then 3
+              else 0
+            end;
+            y * 5
+          `;
+          assert.strictEqual(parser.evaluate(expr, { x: 'one' }), 5);
+          assert.strictEqual(parser.evaluate(expr, { x: 'two' }), 10);
+          assert.strictEqual(parser.evaluate(expr, { x: 'three' }), 15);
+          assert.strictEqual(parser.evaluate(expr, { x: 'four' }), 0);
+        });
+      });
+      describe('invalid case block', () => {
+        it('missing when', () => {
+          assert.throws(() => Parser.evaluate('case true then 5 end'), /invalid case block/);
+          assert.throws(() => Parser.evaluate('case then 5 end'), /invalid case block/);
+        });
+        it('missing then', () => {
+          assert.throws(() => Parser.evaluate('case true when 5 end'), /case block missing when/);
+          assert.throws(() => Parser.evaluate('case when 5 end'), /case block missing when/);
+        });
+        it('missing end', () => {
+          assert.throws(() => Parser.evaluate('case true when 5 then 6'), /invalid case block/);
+          assert.throws(() => Parser.evaluate('case when 5 then 6'), /invalid case block/);
+        });
+        it('else followed by when', () => {
+          assert.throws(() => Parser.evaluate('case true else "abc" when true then "def" end'), /invalid case block/);
+          assert.throws(() => Parser.evaluate('case else "abc" when true then "def" end'), /invalid case block/);
+        });
+      });
+    });
   });
 
   describe('substitute()', function () {
@@ -310,6 +619,13 @@ describe('Expression', function () {
       assert.strictEqual(expr8.evaluate(vars), 8);
       assert.strictEqual(vars.x, 8);
     });
+
+    var expr9 = parser.parse('undefined ?? y + z').substitute('y', 'x');
+    it('x ? x : z', function () {
+      assert.strictEqual(expr9.toString(), '((undefined ?? x) + z)');
+      assert.strictEqual(expr9.evaluate({ x: 1, z: 2 }), 3);
+      assert.strictEqual(expr9.evaluate({ x: 0, z: 2 }), 2);
+    });
   });
 
   describe('simplify()', function () {
@@ -336,6 +652,12 @@ describe('Expression', function () {
 
     it('x = 2*x', function () {
       assert.strictEqual(new Parser().parse('x = 2*x').simplify({ x: 3 }).toString(), '(x = (6))');
+    });
+
+    it('y = x ?? 2 + 4', function () {
+      assert.strictEqual(new Parser().parse('y = x ?? 2 + 4').simplify({ x: 3 }).toString(), '(y = (7))');
+      assert.strictEqual(new Parser().evaluate('y = x ?? 2 + 4', { x: undefined }), 6);
+      assert.strictEqual(new Parser().parse('y = x ?? 2 + 4').simplify({ x: undefined }).toString(), '(y = (6))');
     });
 
     it('(f(x) = x * y)(3)', function () {
@@ -444,6 +766,10 @@ describe('Expression', function () {
       var parser = new Parser();
       assert.deepStrictEqual(parser.parse('f(x, y, z) = x + y + z').variables(), ['f', 'x', 'y', 'z']);
     });
+
+    it('x = y ?? 3 + z', function () {
+      assert.deepStrictEqual(new Parser().parse('x = y ?? 3 + z').variables(), ['x', 'y', 'z']);
+    });
   });
 
   describe('symbols()', function () {
@@ -504,6 +830,10 @@ describe('Expression', function () {
 
     it('x = y + z', function () {
       assert.deepStrictEqual(new Parser().parse('x = y + z').symbols(), ['x', 'y', 'z']);
+    });
+
+    it('x = y ?? 3 + z', function () {
+      assert.deepStrictEqual(new Parser().parse('x = y ?? 3 + z').symbols(), ['x', 'y', 'z']);
     });
   });
 
@@ -668,6 +998,14 @@ describe('Expression', function () {
 
     it('[1, 2+3, a, "5"]', function () {
       assert.strictEqual(parser.parse('[1, 2+3, a, "5"]').toString(), '[1, (2 + 3), a, "5"]');
+    });
+
+    it('2 ?? 3 + 2', function () {
+      assert.strictEqual(parser.parse('2 ?? 3 + 2').toString(), '((2 ?? 3) + 2)');
+    });
+
+    it('undefined ?? 3 + 2', function () {
+      assert.strictEqual(parser.parse('undefined ?? 3 + 2').toString(), '((undefined ?? 3) + 2)');
     });
   });
 
@@ -926,6 +1264,35 @@ describe('Expression', function () {
     it('[1, 2+3, 4*5, 6/7, [8, 9, 10], "1" || "1"]', function () {
       var exp = parser.parse('[1, 2+3, 4*5, 6/7, [8, 9, 10], "1" || "1"]');
       assert.strictEqual(JSON.stringify(exp.toJSFunction()()), JSON.stringify([1, 5, 20, 6 / 7, [8, 9, 10], '11']));
+    });
+
+    describe('object property references that return undefined', function () {
+      var obj = { thingy: { array: [{ value: 10 }] } };
+      it('control', function () {
+        assert.strictEqual(parser.evaluate('thingy.array[0].value', obj), 10);
+      });
+      it('non-existent properties', function () {
+        assert.strictEqual(parser.evaluate('thingy.doesNotExist', obj), undefined);
+        assert.strictEqual(parser.evaluate('thingy.doesNotExist[0]', obj), undefined);
+        assert.strictEqual(parser.evaluate('thingy.doesNotExist[0].childArray[1].notHere.alsoNotHere', obj), undefined);
+        assert.strictEqual(parser.evaluate('thingy.array[0].value.doesNotExist', obj), undefined);
+
+        assert.strictEqual(parser.evaluate('thingy.doesNotExist ?? 1', obj), 1);
+        assert.strictEqual(parser.evaluate('thingy.array[0].value.doesNotExist ?? 1', obj), 1);
+        assert.strictEqual(parser.evaluate('thingy.doesNotExist[0].childArray[1].notHere.alsoNotHere ?? 1', obj), 1);
+      });
+      it('non-existent array elements', function () {
+        assert.strictEqual(parser.evaluate('thingy.array[1]', obj), undefined);
+        assert.strictEqual(parser.evaluate('thingy.array[1].value', obj), undefined);
+
+        assert.strictEqual(parser.evaluate('thingy.array[1] ?? 1', obj), 1);
+        assert.strictEqual(parser.evaluate('thingy.array[1].value ?? 1', obj), 1);
+      });
+    });
+
+    it('a ?? b + c', function () {
+      assert.strictEqual(Parser.parse('a ?? b + c').toJSFunction('a,b,c')(1, 2, 3), 4);
+      assert.strictEqual(Parser.parse('a ?? b + c').toJSFunction('a,b,c')(undefined, 2, 3), 5);
     });
   });
 });
