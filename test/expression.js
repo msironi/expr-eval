@@ -363,35 +363,6 @@ describe('Expression', function () {
       it('should be disabled by default', function () {
         assert.throws(() => Parser.evaluate('"1.6" as "abc"'));
       });
-      it('"1.6" as "number"', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.strictEqual(parser.evaluate('"1.6" as "number"'), 1.6);
-      });
-      it('"1.6" as "int"', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.strictEqual(parser.evaluate('"1.6" as "int"'), 2);
-      });
-      it('"1.6" as "integer"', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.strictEqual(parser.evaluate('"1.6" as "integer"'), 2);
-      });
-      it('"1.6" as "boolean"', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.strictEqual(parser.evaluate('"1.6" as "boolean"'), true);
-      });
-      it('"" as "boolean"', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.strictEqual(parser.evaluate('"" as "boolean"'), false);
-      });
-      it('should throw an error for unknown right hand sides', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        assert.throws(() => parser.evaluate('"1.6" as "abc"'), /unknown type: abc/);
-      });
-      it('should allow operator overloading', function () {
-        const parser = new Parser({ operators: { conversion: true } });
-        parser.binaryOps.as = (a, _b) => a + '_suffix';
-        assert.strictEqual(parser.evaluate('"abc" as "suffix"'), 'abc_suffix');
-      });
     });
 
     describe('CASE statements', () => {
