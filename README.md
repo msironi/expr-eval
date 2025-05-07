@@ -7,8 +7,8 @@ JavaScript Expression Evaluator
 
 Description
 -------------------------------------
-This is a fork of expr-eval with some enhancements, as it appears that package is no longer being maintained.  This fork
-adds the following enhancements.
+**This is a fork of expr-eval 2.0.2 with some enhancements, as it appears that package is no longer being maintained.  This fork
+adds the following enhancements.**
 
 ### Support for undefined ###
 
