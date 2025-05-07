@@ -140,6 +140,8 @@ assert.strictEqual(parser.evaluate('$a + $b'), 6);
 
 ### SQL style case blocks ###
 
+**NOTE: toJSFunction() is not supported for expressions that use case blocks.**
+
 SQL style case blocks are now supported, for both cases which evaluate a value against other
 values (a switch style case) and cases which test for the first truthy when (if/else/if style cases).
 
