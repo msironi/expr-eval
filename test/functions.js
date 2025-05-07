@@ -195,7 +195,7 @@ describe('Functions', function () {
     describe('hypot(a, b, ...)', function () {
       var parser = new Parser();
 
-      it.skip('should return the hypotenuse', function () {
+      it('should return the hypotenuse', function () {
         assert.strictEqual(parser.evaluate('hypot()'), 0);
         assert.strictEqual(parser.evaluate('hypot(3)'), 3);
         assert.strictEqual(parser.evaluate('hypot(3,4)'), 5);
@@ -206,7 +206,7 @@ describe('Functions', function () {
         assert.strictEqual(parser.evaluate('hypot(1, 2, 1 / 0)'), Infinity);
       });
 
-      it.skip('should avoid overflowing', function () {
+      it('should avoid overflowing', function () {
         assert.ok(Math.abs(parser.evaluate('hypot(10^200, 10^200)') - 1.4142135623730959e+200) <= 1e186);
         assert.ok(Math.abs(parser.evaluate('hypot(10^-200, 10^-200)') - 1.4142135623730944e-200) <= 1e186);
         assert.ok(Math.abs(parser.evaluate('hypot(10^100, 11^100, 12^100, 13^100)') - 2.4793352492856554e+111) <= 1e97);

@@ -1,7 +1,9 @@
-import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IEXPREVAL, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, IWHENMATCH, ICASEELSE, ICASECOND, IWHENCOND, IOBJECT, IPROPERTY } from './instruction';
+import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IEXPREVAL, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, IWHENMATCH, ICASEELSE, ICASECOND, IWHENCOND, IOBJECT, IPROPERTY, IOBJECTEND } from './instruction';
 
-// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF nstack IUNDEFINED
-// cSpell:words ICASEMATCH IWHENMATCH ICASECOND IWHENCOND ICASEELSE IOBJECT IPROPERTY
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY
+// cSpell:words IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE IPROPERTY
+// cSpell:words IOBJECT IOBJECTEND
+// cSpell:words nstack
 
 /**
  * The main entry point for expression evaluation; evaluates an expression returning the result.
@@ -284,6 +286,9 @@ function evaluateExpressionToken(expr, values, token, nstack) {
   } else if (type === IOBJECT) {
     // We are constructing an object, push an empty object onto the stack.
     nstack.push({});
+  } else if (type === IOBJECTEND) {
+    // We ignore this instruction, we don't need to emit anything to the stack
+    // when an object construction is complete.
   } else if (type === IPROPERTY) {
     // At this point the top 2 items on the stack will be the property value, and the object
     // in which we should be setting the value.  We need to pop the value off the stack

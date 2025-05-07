@@ -55,7 +55,9 @@ export interface ParserOptions {
     expm1?: boolean,
     log1p?: boolean,
     sign?: boolean,
-    log2?: boolean
+    log2?: boolean,
+    coalesce?: boolean,
+    conversion?: boolean
   };
 }
 
@@ -65,13 +67,40 @@ export class Parser {
     functions: any;
     consts: any;
     parse(expression: string): Expression;
-    evaluate(expression: string, values?: Value): number;
+
+    /**
+     * Evaluate an expression.
+     * @param expression The expression to evaluate.
+     * @param values Input values to pass to the expression.
+     * @returns The return value is the result of the expression; the type is dependent on
+     * what type the expression returns.  Note that if the expression uses custom functions
+     * that return promises, then the return value will be a promise which will contain the
+     * expression value when resolved.
+     */
+    evaluate(expression: string, values?: Value): any;
     static parse(expression: string): Expression;
-    static evaluate(expression: string, values?: Value): number;
+
+    /**
+     * Evaluate an expression.
+     * @param expression The expression to evaluate.
+     * @param values Input values to pass to the expression.
+     * @returns The return value is the result of the expression; the type is dependent on
+     * what type the expression returns.
+     */
+    static evaluate(expression: string, values?: Value): any;
 }
 
 export interface Expression {
     simplify(values?: Value): Expression;
+
+    /**
+     * Evaluate an expression.
+     * @param values Input values to pass to the expression.
+     * @returns The return value is the result of the expression; the type is dependent on
+     * what type the expression returns.  Note that if the expression uses custom functions
+     * that return promises, then the return value will be a promise which will contain the
+     * expression value when resolved.
+     */
     evaluate(values?: Value): any;
     substitute(variable: string, value: Expression | string | number): Expression;
     symbols(options?: { withMembers?: boolean }): string[];

@@ -1,6 +1,9 @@
-// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED nstack
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY
+// cSpell:words IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE IPROPERTY
+// cSpell:words IOBJECT IOBJECTEND
+// cSpell:words nstack
 
-import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED } from './instruction';
+import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, ICASECOND, IWHENCOND, IWHENMATCH, ICASEELSE, IOBJECT, IOBJECTEND, IPROPERTY } from './instruction';
 
 export default function expressionToString(tokens, toJS) {
   var nstack = [];
@@ -114,6 +117,68 @@ export default function expressionToString(tokens, toJS) {
     } else if (type === IUNDEFINED) {
       // The value of the undefined reserved work is undefined.
       nstack.push('undefined');
+    } else if (type === ICASEMATCH || type === ICASECOND) {
+      // When we get here all the when conditions have already been evaluated; at this point
+      // the stack will look like
+      // toTest, condition0, value0, condition1, value1, ..., conditionN, valueN.
+      // Each of the condition values will be true/false.
+      // First we remove all the WHEN/ELSE conditions from the stack...
+      n1 = item.value;
+      const whens = nstack.splice(-n1, n1);
+      if (type === ICASEMATCH) {
+        // ...then remove the value being tested from the stack if this is a CASE $input...
+        n2 = nstack.pop();
+        // ...push a string for the entire case onto the stack.
+        nstack.push(`case ${n2} ` + whens.join(' ') + ' end');
+      } else {
+        // ...push a string for the entire case onto the stack.
+        nstack.push(`case ` + whens.join(' ') + ' end');
+      }
+    } else if (type === IWHENCOND) {
+      // We are evaluating a WHEN x THEN y portion of a CASE statement; the top of the
+      // stack has the y value...
+      n1 = nstack.pop();
+      // ...The second value on the stack has the x value
+      n2 = nstack.pop();
+      // ..once we have the when value and the value being tested we evaluate the x value
+      // to see if it evaluates to a truthy value.
+      nstack.push(`when ${n2} then ${n1}`);
+    } else if (type === IWHENMATCH) {
+      // We are evaluating a WHEN x THEN y portion of a CASE $input statement; the top of the
+      // stack has the y value...
+      n1 = nstack.pop();
+      // ...The second value on the stack has the x value
+      n2 = nstack.pop();
+      // ...The last item on the stack will be the value to test for the FIRST when;
+      // as we have further when conditions they will pile up on the stack we will have to
+      // skip them...
+      n3 = nstack[nstack.length - 1 - (item.value * 2)];
+      // ..once we have the when value and the value being tested we use the == operator
+      // to compare them.
+      nstack.push(`when ${n2} then ${n1}`);
+    } else if (type === ICASEELSE) {
+      // Wea re evaluating a ELSE y portion of a case statement; we want to push a pair of values
+      // just a like a WHEN x THEN y; the first value being true to always match this condition the
+      // second value being the value to use.
+      n1 = nstack.pop();
+      nstack.push(`else ${n1}`);
+    } else if (type === IOBJECT) {
+      // We are constructing an object, push an empty object onto the stack.
+      nstack.push(`{ `);
+    } else if (type === IOBJECTEND) {
+      // We have completed constructing an object, append the closing brace.
+      nstack.push(`${nstack.pop()} }`);
+    } else if (type === IPROPERTY) {
+      // At this point the top 2 items on the stack will be the property value, and the partial
+      // object construction string we are building.
+      n1 = nstack.pop();
+      const partial = nstack.pop();
+      // We keep the entire object expression as a single entry on the stack
+      // If this is the FIRST property then the value on the stack will be the '{ ' from the IOBJECT
+      // above.  If not then it will be the previous property in the object which means we need a
+      // comma to separate this property from the previous property.
+      const separator = partial.endsWith('{ ') ? '' : ', ';
+      nstack.push(`${partial}${separator}${item.value}: ${n1}`);
     } else {
       throw new Error('invalid Expression');
     }

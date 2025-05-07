@@ -331,5 +331,4 @@ describe('Binary Operators', function () {
       assert.strictEqual(parser.evaluate('"abc" as "suffix"'), 'abc_suffix');
     });
   });
-
 });

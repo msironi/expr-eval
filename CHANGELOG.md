@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.0.2.1] 2025-05-07
+
+- Fork of https://github.com/silentmatt/expr-eval which appears to be abandoned
+- Add undefined as an expression keyword.
+- Add support for setting variables to undefined.
+- Operators/functions return undefined if they operate on undefined.
+- Array/structure references act like JavaScript ?.
+- Add coalesce operator ??; operator returns the right side if the left side is undefined, null, Infinity, or a Nan, the left side otherwise.
+- String concatenation using the + operator on two strings.
+- Support for custom functions returning promises; expression evaluation will stop until the promise resolves.  Note that this means that the return value of evaluate will be a promise.
+- Support for invoking a callback for custom variable name resolution if an expression references an unknown variable.  This allows things like environment variables to be exposed in expressions.
+- Support for SQL style case/when blocks, both for switch style cases and for if/else/if style cases.
+- Construction of objects in expressions using JavaScript style syntax.
+- Value conversion using the AS operator; note that this is disabled by default.
+
 ## [2.0.2] - 2019-09-28
 
 ### Added
