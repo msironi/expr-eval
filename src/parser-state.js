@@ -1,8 +1,8 @@
-// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD
-// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH IWHENMATCH ICASEELSE ICASECOND IWHENCOND
+// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD TBRACE
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH IWHENMATCH ICASEELSE ICASECOND IWHENCOND IPROPERTY IOBJECT
 
-import { TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TEOF, TKEYWORD } from './token';
-import { Instruction, INUMBER, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ternaryInstruction, binaryInstruction, unaryInstruction, IWHENMATCH, ICASEMATCH, ICASEELSE, ICASECOND, IWHENCOND } from './instruction';
+import { TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TEOF, TKEYWORD, TBRACE } from './token';
+import { Instruction, INUMBER, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ternaryInstruction, binaryInstruction, unaryInstruction, IWHENMATCH, ICASEMATCH, ICASEELSE, ICASECOND, IWHENCOND, IPROPERTY, IOBJECT } from './instruction';
 import contains from './contains';
 
 export function ParserState(parser, tokenStream, options) {
@@ -80,6 +80,8 @@ ParserState.prototype.parseAtom = function (instr) {
   } else if (this.accept(TPAREN, '(')) {
     this.parseExpression(instr);
     this.expect(TPAREN, ')');
+  } else if (this.accept(TBRACE, '{')) {
+    this.parseObject(instr);
   } else if (this.accept(TBRACKET, '[')) {
     if (this.accept(TBRACKET, ']')) {
       instr.push(new Instruction(IARRAY, 0));
@@ -425,4 +427,36 @@ ParserState.prototype.parseCaseWhen = function (instr) {
   } else {
     throw new Error(`invalid case block`);
   }
+};
+
+ParserState.prototype.parseObject = function (instr) {
+  const error = 'invalid object definition';
+  var count = 0;
+  instr.push(new Instruction(IOBJECT, 0));
+  for (var first = true; !this.accept(TBRACE, '}'); first = false) {
+    // There should be a command before the 2nd-nth property.
+    if (!first && !this.accept(TCOMMA, ',')) {
+      throw new Error(error);
+    }
+    // We want to allow an extraneous trailing comma after the last property
+    // so if there is a closing brace after the comma we allow it and the
+    // object is complete.
+    if (this.accept(TBRACE, '}')) {
+      return count;
+    }
+    // Expect a name token for the property name.
+    if (!this.accept(TNAME)) {
+      throw new Error(error);
+    }
+    const name = this.current.value;
+    // Expect a colon.
+    if (!this.accept(TOP, ':')) {
+      throw new Error(error);
+    }
+    // Expect an expression for the property value.
+    this.parseExpression(instr);
+    instr.push(new Instruction(IPROPERTY, name));
+    ++count;
+  }
+  return count;
 };

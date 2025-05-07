@@ -1,4 +1,4 @@
-// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD
+// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD TBRACE
 
 export var TEOF = 'TEOF';
 export var TOP = 'TOP';
@@ -10,6 +10,7 @@ export var TCOMMA = 'TCOMMA';
 export var TNAME = 'TNAME';
 export var TSEMICOLON = 'TSEMICOLON';
 export var TKEYWORD = 'TKEYWORD';
+export var TBRACE = 'TBRACE';
 
 export function Token(type, value, index) {
   this.type = type;

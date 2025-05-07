@@ -1,6 +1,6 @@
-// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD
+// cSpell:words TEOF TNUMBER TSTRING TPAREN TBRACKET TCOMMA TNAME TSEMICOLON TUNDEFINED TKEYWORD TBRACE
 
-import { Token, TEOF, TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TKEYWORD } from './token';
+import { Token, TEOF, TOP, TNUMBER, TSTRING, TPAREN, TBRACKET, TCOMMA, TNAME, TSEMICOLON, TKEYWORD, TBRACE } from './token';
 
 export function TokenStream(parser, expression) {
   this.pos = 0;
@@ -43,6 +43,7 @@ TokenStream.prototype.next = function () {
       this.isOperator() ||
       this.isString() ||
       this.isParen() ||
+      this.isBrace() ||
       this.isBracket() ||
       this.isComma() ||
       this.isSemicolon() ||
@@ -80,6 +81,16 @@ TokenStream.prototype.isParen = function () {
   var c = this.expression.charAt(this.pos);
   if (c === '(' || c === ')') {
     this.current = this.newToken(TPAREN, c);
+    this.pos++;
+    return true;
+  }
+  return false;
+};
+
+TokenStream.prototype.isBrace = function () {
+  var c = this.expression.charAt(this.pos);
+  if (c === '{' || c === '}') {
+    this.current = this.newToken(TBRACE, c);
     this.pos++;
     return true;
   }

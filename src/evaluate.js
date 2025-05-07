@@ -1,7 +1,7 @@
-import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IEXPREVAL, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, IWHENMATCH, ICASEELSE, ICASECOND, IWHENCOND } from './instruction';
+import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IEXPREVAL, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, IWHENMATCH, ICASEELSE, ICASECOND, IWHENCOND, IOBJECT, IPROPERTY } from './instruction';
 
 // cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF nstack IUNDEFINED
-// cSpell:words ICASEMATCH IWHENMATCH ICASECOND IWHENCOND ICASEELSE
+// cSpell:words ICASEMATCH IWHENMATCH ICASECOND IWHENCOND ICASEELSE IOBJECT IPROPERTY
 
 /**
  * The main entry point for expression evaluation; evaluates an expression returning the result.
@@ -281,6 +281,16 @@ function evaluateExpressionToken(expr, values, token, nstack) {
     n1 = nstack.pop();
     nstack.push(true);
     nstack.push(resolveExpression(n1, values));
+  } else if (type === IOBJECT) {
+    // We are constructing an object, push an empty object onto the stack.
+    nstack.push({});
+  } else if (type === IPROPERTY) {
+    // At this point the top 2 items on the stack will be the property value, and the object
+    // in which we should be setting the value.  We need to pop the value off the stack
+    // and then set the property in the object to the value, leaving the object on the stack.
+    n1 = nstack.pop();
+    n2 = nstack[nstack.length - 1];
+    n2[token.value] = n1;
   } else {
     throw new Error('invalid Expression');
   }

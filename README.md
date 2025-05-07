@@ -175,6 +175,35 @@ parser.evaluate(expr, { x: 3 }); // 'three'
 parser.evaluate(expr, { x: 4 }); // 'too-big'
 ```
 
+### object construction  ###
+
+Objects can be created using JavaScript syntax.  This allows for expressions that return object values
+and for object arguments to be passed to custom functions.
+
+```js
+const parser = new Parser();
+const expr = `{
+    a: x * 3,
+    b: {
+        /*this x is a property and not the x on the input object*/
+        x: "first" + "_" + "second",
+        y: min(x, 0),
+    },
+    c: [0, 1, 2, x],
+}`;
+parser.evaluate(expr, { x: 3 });
+/*
+{
+    a: 15,
+    b: {
+        x: 'first_second',
+        z: 0
+    },
+    c: [0, 1, 2, 3]
+}
+*/
+```
+
 ### as operator  ###
 
 An as operator has been added to support type conversion.  __This operator is disabled by default and

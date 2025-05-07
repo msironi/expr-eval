@@ -1,4 +1,4 @@
-// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE
+// cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE IPROPERTY IOBJECT
 
 export var INUMBER = 'INUMBER';
 export var IOP1 = 'IOP1';
@@ -19,6 +19,8 @@ export var ICASEMATCH = 'ICASEMATCH';
 export var IWHENCOND = 'IWHENCOND';
 export var IWHENMATCH = 'IWHENMATCH';
 export var ICASEELSE = 'ICASEELSE';
+export var IPROPERTY = 'IPROPERTY';
+export var IOBJECT = 'IOBJECT';
 
 export function Instruction(type, value) {
   this.type = type;
@@ -61,6 +63,10 @@ Instruction.prototype.toString = function () {
       return `WHEN ${this.value}`;
     case ICASEELSE:
       return `ELSE`;
+    case IPROPERTY:
+      return `PROPERTY ${this.value}`;
+    case IOBJECT:
+      return `OBJECT ${this.value}`;
     default:
       return 'Invalid Instruction';
   }
