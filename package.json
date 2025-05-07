@@ -1,5 +1,5 @@
 {
-  "name": "expr-eval",
+  "name": "expr-eval-enhanced",
   "version": "2.0.2.1",
   "description": "Mathematical expression evaluator",
   "main": "dist/bundle.js",
