@@ -44,7 +44,6 @@ values is undefined then the operator/function returns undefined.  So `2 + undef
 etc.
 
 Logical operators act just like JavaScript, so `3 > undefined` is `false`.
-Original readme below:
 
 #### coalesce operator ####
 
