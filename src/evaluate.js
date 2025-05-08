@@ -29,7 +29,7 @@ export default function evaluate(tokens, expr, values) {
  * @returns A truthy value if the object is a promise or promise-like object.
  */
 function isPromise(obj) {
-  return typeof obj === 'object' && typeof obj.then === 'function';
+  return obj && typeof obj === 'object' && typeof obj.then === 'function';
 }
 
 /**
@@ -177,10 +177,10 @@ function evaluateExpressionToken(expr, values, token, nstack) {
       args.unshift(resolveExpression(nstack.pop(), values));
     }
     f = nstack.pop();
-    if (f.apply && f.call) {
+    if (f && f.apply && f.call) {
       nstack.push(f.apply(undefined, args));
     } else {
-      throw new Error(f + ' is not a function');
+      throw new Error(`${f}` + ' is not a function');
     }
   } else if (type === IFUNDEF) {
     // Create closure to keep references to arguments and expression

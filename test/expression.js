@@ -266,6 +266,18 @@ describe('Expression', function () {
     });
 
     describe('fork features', () => {
+      describe('undefined support', () => {
+        it('should parse undefined', function () {
+          assert.strictEqual(Parser.evaluate('undefined'), undefined);
+          assert.strictEqual(Parser.evaluate('x = undefined; x'), undefined);
+        });
+        it('should fail to parse undefined as a custom function', function () {
+          // undefined is not a function
+          assert.throws(() => Parser.evaluate('undefined()'), /undefined is not a function/);
+          assert.throws(() => Parser.evaluate('x = undefined(); x'), /undefined is not a function/);
+        });
+      });
+
       it('concatenate strings with + operator', function () {
         const parser = new Parser();
         assert.strictEqual(parser.evaluate('"abc" + "def" + "ghi"'), 'abcdefghi');
@@ -292,6 +304,14 @@ describe('Expression', function () {
           assert.strictEqual(result, 7);
 
           assert.strictEqual(await parser.evaluate('doIt(3) + 4'), 10);
+        });
+        it('custom function that returns null should not break isPromise', () => {
+          // There was a bug in isPromise() where null would break it (because typeof null is 'object', which would
+          // then make isPromise look at null.then which blew up).  This proves that bug was fixed.
+          const parser = new Parser();
+          parser.functions.doIt = () => null;
+          const result = parser.evaluate('x = doIt(); x');
+          assert.strictEqual(result, null);
         });
       });
 
