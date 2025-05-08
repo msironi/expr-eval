@@ -66,6 +66,21 @@ export class Parser {
     unaryOps: any;
     functions: any;
     consts: any;
+
+    /**
+     * Provides custom variable name resolution when a variable name is not recognized.  This property
+     * can be set to a callback that will be called whenever a variable name is not recognized to provide
+     * custom variable name resolution.
+     * @param token The name of the variable that could not be resolved.
+     * @returns One of the following:
+     * * An object with an `alias` property; if this is returned then the token will be
+     * treated as if it was the value of the `alias` property.
+     * * An object with a 'value' property; if this is returned then the value of the
+     * `value` property will be used as the value of the token.
+     * * `undefined`; if this is returned then the token is considered unresolved.
+     */
+    resolve: (token: string) => { alias: string } | { value: any } | undefined;
+
     parse(expression: string): Expression;
 
     /**
