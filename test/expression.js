@@ -601,6 +601,20 @@ describe('Expression', function () {
           var result = parser.evaluate(expr);
           assert.notStrictEqual(result, { a: 1, b: { y: 'first', z: 'second' }, c: 3 });
         });
+        it('should allow arrays with nested objects', function () {
+          const parser = new Parser();
+          const expr = `{
+            a: 1,
+            b: [
+              { value: 1 * 10 },
+              { value: 2 * 10 },
+              { value: 3 * 10 }
+            ],
+            c: 3,
+          }`;
+          var result = parser.evaluate(expr);
+          assert.notStrictEqual(result, { a: 1, b: { y: 'first', z: 'second' }, c: 3 });
+        });
         it('should allow expressions for property values', function () {
           const parser = new Parser();
           const expr = `{
