@@ -61,11 +61,75 @@ export interface ParserOptions {
   };
 }
 
+export type UnaryOperator =
+  | '-'
+  | '+'
+  | '!'
+  | 'abs'
+  | 'acos'
+  | 'acosh'
+  | 'asin'
+  | 'asinh'
+  | 'atan'
+  | 'atanh'
+  // 11
+  | 'cbrt'
+  | 'ceil'
+  | 'cos'
+  | 'cosh'
+  | 'exp'
+  | 'expm1'
+  | 'floor'
+  | 'length'
+  | 'lg'
+  | 'ln'
+  // 21
+  | 'log'
+  | 'log1p'
+  | 'log2'
+  | 'log10'
+  | 'not'
+  | 'round'
+  | 'sign'
+  | 'sin'
+  | 'sinh'
+  | 'sqrt'
+  // 31
+  | 'tan'
+  | 'tanh'
+  | 'trunc'
+  ;
+
+export type BinaryOperator =
+  | '+'
+  | '-'
+  | '*'
+  | '/'
+  | '%'
+  | '^'
+  | '||'
+  | '=='
+  | '!='
+  | '>'
+  // 11
+  | '<'
+  | '>='
+  | '<='
+  | '='
+  | '[xxx]'
+  | 'and'
+  | 'in'
+  | 'or'
+  | '??'
+  | 'as'
+  ;
+
 export class Parser {
     constructor(options?: ParserOptions);
-    unaryOps: any;
-    functions: any;
-    consts: any;
+    binaryOps: Record<BinaryOperator, (value1: any, value2: any) => any>;
+    unaryOps: Record<UnaryOperator, (value: any) => any>;
+    functions: Record<string, Function>;
+    consts: Record<string, any>;
 
     /**
      * Provides custom variable name resolution when a variable name is not recognized.  This property

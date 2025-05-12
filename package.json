@@ -1,6 +1,6 @@
 {
   "name": "expr-eval-enhanced",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Mathematical expression evaluator",
   "main": "dist/bundle.js",
   "module": "dist/index.mjs",

@@ -80,6 +80,7 @@ export function Parser(options) {
     asinh: asinh,
     atan: atan,
     atanh: atanh,
+    // 11
     cbrt: cbrt,
     ceil: ceil,
     cos: cos,
@@ -90,6 +91,7 @@ export function Parser(options) {
     length: length,
     lg: log10,
     ln: log,
+    // 21
     log: log,
     log1p: log1p,
     log2: log2,
@@ -100,6 +102,7 @@ export function Parser(options) {
     sin: sin,
     sinh: sinh,
     sqrt: sqrt,
+    // 31
     tan: tan,
     tanh: tanh,
     trunc: trunc
@@ -116,6 +119,7 @@ export function Parser(options) {
     '==': equal,
     '!=': notEqual,
     '>': greaterThan,
+    // 11
     '<': lessThan,
     '>=': greaterThanEqual,
     '<=': lessThanEqual,
