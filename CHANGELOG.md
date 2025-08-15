@@ -1,6 +1,10 @@
 # Changelog
 
-## [2.0.2.1] 2025-05-07
+## [3.0.4] 2025-08-15
+
+- Add 'not in' operator, "c" not in ["a", "b"].
+
+## [3.0.3] 2025-05-07
 
 - Fork of https://github.com/silentmatt/expr-eval which appears to be abandoned
 - Add undefined as an expression keyword.

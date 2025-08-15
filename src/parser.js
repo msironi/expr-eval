@@ -25,7 +25,8 @@ import {
   orOperator,
   inOperator,
   coalesce,
-  asOperator
+  asOperator,
+  notInOperator
 } from './functions-binary-ops';
 import {
   pos,
@@ -127,6 +128,7 @@ export function Parser(options) {
     '[': arrayIndex,
     and: andOperator,
     in: inOperator,
+    'not in': notInOperator,
     or: orOperator,
     '??': coalesce,
     'as': asOperator
