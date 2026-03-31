@@ -99,7 +99,19 @@ export function notInOperator(a, b) {
 }
 
 export function coalesce(a, b) {
-  return a === undefined || a === null || a === Infinity || isNaN(a) ? b : a;
+  if (a === undefined || a === null || a === Infinity) {
+    a = undefined;
+  }
+  if (typeof a === 'number' && isNaN(a)) {
+    a = undefined;
+  }
+  if (b === undefined || b === null || b === Infinity) {
+    b = undefined;
+  }
+  if (typeof b === 'number' && isNaN(b)) {
+    b = undefined;
+  }
+  return a !== undefined ? a : b;
 }
 
 export function asOperator(a, b) {

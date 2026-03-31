@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.0.5] 2026-03-31
+
+- Fix a bug in the coalesce (??) operator which was preventing it from working on anything except numbers and Booleans.
+
 ## [3.0.4] 2025-08-15
 
 - Add 'not in' operator, "c" not in ["a", "b"].

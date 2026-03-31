@@ -295,6 +295,47 @@ describe('Binary Operators', function () {
       assert.strictEqual(parser.evaluate('x = undefined; x ?? true and 3'), true);
       assert.strictEqual(parser.evaluate('x = undefined; x ?? 0 and 3'), false);
     });
+    it('should return first defined value when chaining numbers', () => {
+      const parser = new Parser();
+      assert.strictEqual(parser.evaluate('1 ?? undefined ?? undefined'), 1);
+      assert.strictEqual(parser.evaluate('undefined ?? 2 ?? undefined'), 2);
+      assert.strictEqual(parser.evaluate('undefined ?? undefined ?? 3'), 3);
+
+      assert.strictEqual(parser.evaluate('1 ?? 2 ?? 3'), 1);
+      assert.strictEqual(parser.evaluate('undefined ?? 2 ?? 3'), 2);
+      assert.strictEqual(parser.evaluate('undefined ?? undefined ?? 3'), 3);
+    });
+    it('should return first defined value when chaining booleans', () => {
+      const parser = new Parser();
+      assert.strictEqual(parser.evaluate('true ?? undefined ?? undefined'), true);
+      assert.strictEqual(parser.evaluate('undefined ?? true ?? undefined'), true);
+      assert.strictEqual(parser.evaluate('undefined ?? undefined ?? true'), true);
+
+      assert.strictEqual(parser.evaluate('false ?? undefined ?? undefined'), false);
+      assert.strictEqual(parser.evaluate('undefined ?? false ?? undefined'), false);
+      assert.strictEqual(parser.evaluate('undefined ?? undefined ?? false'), false);
+
+      assert.strictEqual(parser.evaluate('false ?? true ?? true'), false);
+      assert.strictEqual(parser.evaluate('undefined ?? false ?? true'), false);
+    });
+    it('should return first defined value when chaining strings', () => {
+      const parser = new Parser();
+      assert.strictEqual(parser.evaluate('"one" ?? undefined ?? undefined'), 'one');
+      assert.strictEqual(parser.evaluate('undefined ?? "two" ?? undefined'), 'two');
+      assert.strictEqual(parser.evaluate('undefined ?? undefined ?? "three"'), 'three');
+
+      assert.strictEqual(parser.evaluate('"one" ?? "two" ?? "three"'), 'one');
+      assert.strictEqual(parser.evaluate('undefined ?? "two" ?? "three"'), 'two');
+    });
+    it('should return first defined value when chaining objects', () => {
+      const parser = new Parser();
+      assert.deepStrictEqual(parser.evaluate('{ a: 1 } ?? undefined ?? undefined'), { a: 1 });
+      assert.deepStrictEqual(parser.evaluate('undefined ?? { b: 2 } ?? undefined'), { b: 2 });
+      assert.deepStrictEqual(parser.evaluate('undefined ?? undefined ?? { c: 3 }'), { c: 3 });
+
+      assert.deepStrictEqual(parser.evaluate('{ a: 1 } ?? { b: 2 } ?? { c: 3 }'), { a: 1 });
+      assert.deepStrictEqual(parser.evaluate('undefined ?? { b: 2 } ?? { c: 3 }'), { b: 2 });
+    });
   });
 
   describe('as operator', () => {
