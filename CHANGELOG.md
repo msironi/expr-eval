@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.0.7] 2026-04-10
+
+Update typings.
+
 ## [3.0.6] 2026-04-10
 
 - Add a new options, `allowStringMembers` that can be used to allow strings to be used for member access.

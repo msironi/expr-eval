@@ -9,6 +9,7 @@ export interface Values {
 
 export interface ParserOptions {
   allowMemberAccess?: boolean;
+  allowStringMembers?: boolean;
   operators?: {
     add?: boolean,
     comparison?: boolean,
