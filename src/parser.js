@@ -182,7 +182,10 @@ Parser.prototype.parse = function (expr) {
   var parserState = new ParserState(
     this,
     new TokenStream(this, expr),
-    { allowMemberAccess: this.options.allowMemberAccess }
+    {
+      allowMemberAccess: this.options.allowMemberAccess,
+      allowStringMembers: this.options.allowStringMembers
+    }
   );
 
   parserState.parseExpression(instr);

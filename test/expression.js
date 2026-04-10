@@ -643,6 +643,31 @@ describe('Expression', function () {
           assert.strictEqual(parser.evaluate(expr), 7);
         });
       });
+
+      describe('string member names', () => {
+        const obj = {
+          variables: {
+            'has space': { 'bar-baz': 6 }
+          }
+        };
+        it('should support string member names when enabled', () => {
+          const parser = new Parser({ allowStringMembers: true });
+          // Should be able to use either single or double quoted strings in any combination.
+          assert.strict.deepEqual(parser.evaluate(`variables."has space"`, obj), { 'bar-baz': 6 });
+          assert.strictEqual(parser.evaluate(`variables."has space"."bar-baz"`, obj), 6);
+          assert.strictEqual(parser.evaluate(`variables."has space"."bar-baz" + 5`, obj), 11);
+          assert.strict.deepEqual(parser.evaluate(`variables.'has space'`, obj), { 'bar-baz': 6 });
+          assert.strictEqual(parser.evaluate(`variables.'has space'.'bar-baz'`, obj), 6);
+          assert.strictEqual(parser.evaluate(`variables.'has space'.'bar-baz' + 5`, obj), 11);
+          assert.strictEqual(parser.evaluate(`variables.'has space'."bar-baz" + 5`, obj), 11);
+        });
+        it('should not support string member names when disabled', () => {
+          const parser = new Parser();
+          assert.throws(() => parser.evaluate(`variables."has space"`, obj), /parse error/);
+          assert.throws(() => parser.evaluate(`variables."has space"."bar-baz"`, obj), /parse error/);
+          assert.throws(() => parser.evaluate(`variables."has space"."bar-baz" + 5`, obj), /parse error/);
+        });
+      });
     });
   });
 

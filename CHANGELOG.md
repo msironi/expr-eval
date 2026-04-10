@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.6] 2026-04-10
+
+- Add a new options, `allowStringMembers` that can be used to allow strings to be used for member access.
+This can be useful when needing to evaluate expressions against objects that have properties that do not
+follow traditional C style variable naming conventions.
+
 ## [3.0.5] 2026-03-31
 
 - Fix a bug in the coalesce (??) operator which was preventing it from working on anything except numbers and Booleans.

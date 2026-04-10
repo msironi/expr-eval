@@ -16,6 +16,7 @@ export function ParserState(parser, tokenStream, options) {
   this.savedCurrent = null;
   this.savedNextToken = null;
   this.allowMemberAccess = options.allowMemberAccess !== false;
+  this.allowStringMembers = options.allowStringMembers === true;
 }
 
 ParserState.prototype.next = function () {
@@ -344,7 +345,13 @@ ParserState.prototype.parseMemberExpression = function (instr) {
         throw new Error('unexpected ".", member access is not permitted');
       }
 
-      this.expect(TNAME);
+      // If the allowStringMembers option is enabled then we allow string literals to be used as member names
+      // in addition to bare identifiers. This allows for expressions like foo."bar-baz" to work.
+      if (this.nextToken.type === TSTRING && this.allowStringMembers) {
+        this.expect(TSTRING);
+      } else {
+        this.expect(TNAME);
+      }
       instr.push(new Instruction(IMEMBER, this.current.value));
     } else if (op.value === '[') {
       if (!this.tokens.isOperatorEnabled('[')) {

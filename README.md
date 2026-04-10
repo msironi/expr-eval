@@ -104,6 +104,27 @@ var obj = { thingy: { array: [{ value: 10 }] } };
 parser.evaluate('thingy.array[1].value ?? 0', obj); // 0
 ```
 
+#### using strings for member access ####
+
+The `allowStringMembers` option can now be passed when creating a parser. If this option is set to true then
+the parser will allow strings to be used for member access. This allows expressions to be evaluated against
+objects whose properties do not follow traditional C style naming conventions.
+
+For example:
+
+```js
+var parser = new Parser({ allowStringMembers: true });
+const obj = {
+  variables: {
+    'has space': { 'bar-baz': 6 }
+  }
+};
+parser.evaluate(`variables."has space"`, obj); // { 'bar-baz': 6 }
+parser.evaluate(`variables."has space"."bar-baz"`, obj); // 6
+parser.evaluate(`variables."has space"."bar-baz" + 5`, obj // 11
+parser.evaluate(`variables.'has space'.'bar-baz' + 5`, obj // 11
+```
+
 ### string concatenation using + ###
 
 The + operator can now be used to concatenate strings.
