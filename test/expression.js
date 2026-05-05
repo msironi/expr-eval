@@ -4,6 +4,7 @@
 'use strict';
 
 var assert = require('assert');
+const { hasUncaughtExceptionCaptureCallback } = require('process');
 var Parser = require('../dist/bundle').Parser;
 
 describe('Expression', function () {
@@ -470,6 +471,63 @@ describe('Expression', function () {
             assert.strictEqual(parser.evaluate(expr, { x: 'two' }), 10);
             assert.strictEqual(parser.evaluate(expr, { x: 'three' }), 15);
             assert.strictEqual(parser.evaluate(expr, { x: 'four' }), 0);
+          });
+          it('does not call else case unless it applies', function () {
+            const parser = new Parser();
+            let x = 0;
+            parser.functions.doIt = (value) => {
+              x++;
+              return value;
+            };
+            const expr = `
+              case x
+                when 1 then 'one'
+                when 2 then 'two'
+                when 3 then doIt('three')
+                else doIt('too-big')
+              end
+            `;
+            assert.strictEqual(x, 0, 'before evaluations');
+            assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+            assert.strictEqual(x, 0, 'after evaluating x = 1');
+            assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+            assert.strictEqual(x, 0, 'after evaluating x = 2');
+            assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+            assert.strictEqual(x, 1, 'after evaluating x = 3');
+            assert.strictEqual(parser.evaluate(expr, { x: 4 }), 'too-big');
+            assert.strictEqual(x, 2, 'after evaluating x = 4');
+          });
+          it('does not call non-matching when cases', function () {
+            const parser = new Parser();
+            let calls = [];
+            parser.functions.tag = (label, value) => {
+              calls.push(label);
+              return value;
+            };
+            const expr = `
+              case x
+                when 1 then tag('branch-1', 'one')
+                when 2 then tag('branch-2', 'two')
+                when 3 then tag('branch-3', 'three')
+                else tag('branch-else', 'other')
+              end
+            `;
+            assert.deepStrictEqual(calls, [], 'before evaluations');
+
+            assert.strictEqual(parser.evaluate(expr, { x: 1 }), 'one');
+            assert.deepStrictEqual(calls, ['branch-1'], 'only branch-1 called for x = 1');
+            calls = [];
+
+            assert.strictEqual(parser.evaluate(expr, { x: 2 }), 'two');
+            assert.deepStrictEqual(calls, ['branch-2'], 'only branch-2 called for x = 2');
+            calls = [];
+
+            assert.strictEqual(parser.evaluate(expr, { x: 3 }), 'three');
+            assert.deepStrictEqual(calls, ['branch-3'], 'only branch-3 called for x = 3');
+            calls = [];
+
+            assert.strictEqual(parser.evaluate(expr, { x: 99 }), 'other');
+            assert.deepStrictEqual(calls, ['branch-else'], 'only branch-else called for x = 99');
           });
         });
         describe('if/else/if style cases', () => {

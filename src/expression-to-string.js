@@ -5,6 +5,12 @@
 
 import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, ICASECOND, IWHENCOND, IWHENMATCH, ICASEELSE, IOBJECT, IOBJECTEND, IPROPERTY } from './instruction';
 
+// Strip the single outer pair of parens that the IEXPR handler adds, so that
+// case/when then/else values in toString() are not double-wrapped.
+function stripExprParens(s) {
+  return (s.length >= 2 && s[0] === '(' && s[s.length - 1] === ')') ? s.slice(1, -1) : s;
+}
+
 export default function expressionToString(tokens, toJS) {
   var nstack = [];
   var n1, n2, n3;
@@ -142,7 +148,8 @@ export default function expressionToString(tokens, toJS) {
       n2 = nstack.pop();
       // ..once we have the when value and the value being tested we evaluate the x value
       // to see if it evaluates to a truthy value.
-      nstack.push(`when ${n2} then ${n1}`);
+      // The then-value is now wrapped in IEXPR (one extra pair of parens); strip them.
+      nstack.push(`when ${n2} then ${stripExprParens(n1)}`);
     } else if (type === IWHENMATCH) {
       // We are evaluating a WHEN x THEN y portion of a CASE $input statement; the top of the
       // stack has the y value...
@@ -155,13 +162,15 @@ export default function expressionToString(tokens, toJS) {
       n3 = nstack[nstack.length - 1 - (item.value * 2)];
       // ..once we have the when value and the value being tested we use the == operator
       // to compare them.
-      nstack.push(`when ${n2} then ${n1}`);
+      // The then-value is now wrapped in IEXPR (one extra pair of parens); strip them.
+      nstack.push(`when ${n2} then ${stripExprParens(n1)}`);
     } else if (type === ICASEELSE) {
       // Wea re evaluating a ELSE y portion of a case statement; we want to push a pair of values
       // just a like a WHEN x THEN y; the first value being true to always match this condition the
       // second value being the value to use.
       n1 = nstack.pop();
-      nstack.push(`else ${n1}`);
+      // The else-value is now wrapped in IEXPR (one extra pair of parens); strip them.
+      nstack.push(`else ${stripExprParens(n1)}`);
     } else if (type === IOBJECT) {
       // We are constructing an object, push an empty object onto the stack.
       nstack.push(`{ `);

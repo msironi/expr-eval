@@ -417,7 +417,9 @@ ParserState.prototype.parseCaseWhen = function (instr) {
   while (this.accept(TKEYWORD, 'when')) {
     this.parseConditionalExpression(instr);
     if (this.accept(TKEYWORD, 'then')) {
-      this.parseConditionalExpression(instr);
+      var thenInstr = [];
+      this.parseConditionalExpression(thenInstr);
+      instr.push(new Instruction(IEXPR, thenInstr));
       instr.push(new Instruction(whenInstruction, count++));
     } else {
       throw new Error(`case block missing when`);
@@ -426,7 +428,9 @@ ParserState.prototype.parseCaseWhen = function (instr) {
 
   // Parse the optional else which gets added to the parse tree as when true then yyy
   if (this.accept(TKEYWORD, 'else')) {
-    this.parseConditionalExpression(instr);
+    var elseInstr = [];
+    this.parseConditionalExpression(elseInstr);
+    instr.push(new Instruction(IEXPR, elseInstr));
     instr.push(new Instruction(ICASEELSE, count++));
   }
 

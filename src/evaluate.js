@@ -244,7 +244,8 @@ function evaluateExpressionToken(expr, values, token, nstack) {
     n2 = undefined;
     for (let i = 0; i < whens.length; i += 2) {
       if (whens[i]) {
-        n2 = whens[i + 1];
+        // Resolve the deferred then/else expression only for the winning branch.
+        n2 = resolveExpression(whens[i + 1], values);
         break;
       }
     }
@@ -260,7 +261,8 @@ function evaluateExpressionToken(expr, values, token, nstack) {
     // to see if it evaluates to a truthy value.
     f = expr.binaryOps['=='];
     nstack.push(resolveExpression(n2, values));
-    nstack.push(resolveExpression(n1, values));
+    // Push the then-value as a deferred closure; it will only be resolved if this branch wins.
+    nstack.push(n1);
   } else if (type === IWHENMATCH) {
     // We are evaluating a WHEN x THEN y portion of a CASE $input statement; the top of the
     // stack has the y value...
@@ -275,14 +277,16 @@ function evaluateExpressionToken(expr, values, token, nstack) {
     // to compare them.
     f = expr.binaryOps['=='];
     nstack.push(f(resolveExpression(n2, values), resolveExpression(n3, values)));
-    nstack.push(resolveExpression(n1, values));
+    // Push the then-value as a deferred closure; it will only be resolved if this branch wins.
+    nstack.push(n1);
   } else if (type === ICASEELSE) {
     // Wea re evaluating a ELSE y portion of a case statement; we want to push a pair of values
     // just a like a WHEN x THEN y; the first value being true to always match this condition the
     // second value being the value to use.
     n1 = nstack.pop();
     nstack.push(true);
-    nstack.push(resolveExpression(n1, values));
+    // Push the else-value as a deferred closure; it will only be resolved if this branch wins.
+    nstack.push(n1);
   } else if (type === IOBJECT) {
     // We are constructing an object, push an empty object onto the stack.
     nstack.push({});

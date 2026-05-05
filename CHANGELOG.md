@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.8] 2026-05-05
+
+Fix case/when blocks to not eagerly evaluate then/else values and to only evaluate
+the value for the condition (if any) that evaluates to truthy.
+
 ## [3.0.7] 2026-04-10
 
 Update typings.
