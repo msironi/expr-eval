@@ -30,6 +30,10 @@ export default function expressionToString(tokens, toJS) {
       n2 = nstack.pop();
       n1 = nstack.pop();
       f = item.value;
+      if (f === '??' && i > 0 && tokens[i - 1].type === IEXPR) {
+        // The right operand of ?? is wrapped in an IEXPR (for short-circuit evaluation); strip the extra parens.
+        n2 = stripExprParens(n2);
+      }
       if (toJS) {
         if (f === '^') {
           nstack.push('Math.pow(' + n1 + ', ' + n2 + ')');

@@ -98,17 +98,21 @@ export function notInOperator(a, b) {
   return !inOperator(a, b);
 }
 
+/**
+ * Determines whether a value is considered "missing" by the coalesce (??) operator: undefined,
+ * null, Infinity or NaN.
+ * @param {*} v The value to test.
+ * @returns true if the value is nullish for the purposes of the ?? operator.
+ */
+export function isCoalesceNullish(v) {
+  return v === undefined || v === null || v === Infinity || (typeof v === 'number' && isNaN(v));
+}
+
 export function coalesce(a, b) {
-  if (a === undefined || a === null || a === Infinity) {
+  if (isCoalesceNullish(a)) {
     a = undefined;
   }
-  if (typeof a === 'number' && isNaN(a)) {
-    a = undefined;
-  }
-  if (b === undefined || b === null || b === Infinity) {
-    b = undefined;
-  }
-  if (typeof b === 'number' && isNaN(b)) {
+  if (isCoalesceNullish(b)) {
     b = undefined;
   }
   return a !== undefined ? a : b;

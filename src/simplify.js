@@ -42,10 +42,18 @@ export default function simplify(tokens, unaryOps, binaryOps, ternaryOps, values
       item = new Instruction(INUMBER, f(n1.value));
       nstack.push(item);
     } else if (type === IEXPR) {
-      while (nstack.length > 0) {
-        newexpression.push(nstack.shift());
+      var simplified = simplify(item.value, unaryOps, binaryOps, ternaryOps, values);
+      var nextItem = tokens[i + 1];
+      if (nextItem && nextItem.type === IOP2 && nextItem.value === '??' &&
+        nstack.length > 0 && simplified.length === 1 && simplified[0].type === INUMBER) {
+        // The right operand of ?? simplified down to a constant, let the ?? operator fold with it.
+        nstack.push(simplified[0]);
+      } else {
+        while (nstack.length > 0) {
+          newexpression.push(nstack.shift());
+        }
+        newexpression.push(new Instruction(IEXPR, simplified));
       }
-      newexpression.push(new Instruction(IEXPR, simplify(item.value, unaryOps, binaryOps, ternaryOps, values)));
     } else if (type === IMEMBER && nstack.length > 0) {
       n1 = nstack.pop();
       nstack.push(new Instruction(INUMBER, n1.value[item.value]));

@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.0.9] 2026-10-22
+
+- Fix the coalesce (??) operator to short-circuit; the right operand is now only evaluated when the left
+operand is undefined, null, Infinity, or NaN.  Previously both operands were always evaluated, so side effects
+in the right operand (e.g. `x ?? invalid('message')`) fired even when the left operand was defined.
+- Fix a parser bug that prevented member access and indexing after a function call.  Postfix member access
+(`.name`), indexing (`[expr]`), and function calls (`(args)`) can now be chained in any order, e.g. `f().a`,
+`f()[0]`, `f().g().b`, and `arr[0]().x`.  Previously these failed with a "parse error: Expected EOF".
+
 ## [3.0.8] 2026-05-05
 
 Fix case/when blocks to not eagerly evaluate then/else values and to only evaluate

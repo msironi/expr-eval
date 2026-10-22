@@ -1,5 +1,7 @@
 import { INUMBER, IOP1, IOP2, IOP3, IVAR, IVARNAME, IFUNCALL, IFUNDEF, IEXPR, IEXPREVAL, IMEMBER, IENDSTATEMENT, IARRAY, IUNDEFINED, ICASEMATCH, IWHENMATCH, ICASEELSE, ICASECOND, IWHENCOND, IOBJECT, IPROPERTY, IOBJECTEND } from './instruction';
 
+import { isCoalesceNullish } from './functions-binary-ops';
+
 // cSpell:words INUMBER IVAR IVARNAME IFUNCALL IEXPR IEXPREVAL IMEMBER IENDSTATEMENT IARRAY
 // cSpell:words IFUNDEF IUNDEFINED ICASEMATCH ICASECOND IWHENCOND IWHENMATCH ICASEELSE IPROPERTY
 // cSpell:words IOBJECT IOBJECTEND
@@ -109,6 +111,16 @@ function evaluateExpressionToken(expr, values, token, nstack) {
       nstack.push(n1 ? !!evaluate(n2, expr, values) : false);
     } else if (token.value === 'or') {
       nstack.push(n1 ? true : !!evaluate(n2, expr, values));
+    } else if (token.value === '??' && isExpressionEvaluator(n2)) {
+      // Short-circuit: only evaluate the right operand when the left operand is nullish.
+      f = expr.binaryOps[token.value];
+      n1 = resolveExpression(n1, values);
+      if (isCoalesceNullish(n1)) {
+        n2 = evaluate(n2, expr, values);
+        nstack.push(isPromise(n2) ? n2.then(function (r) { return f(n1, r); }) : f(n1, n2));
+      } else {
+        nstack.push(f(n1, undefined));
+      }
     } else if (token.value === '=') {
       f = expr.binaryOps[token.value];
       nstack.push(f(n1, evaluate(n2, expr, values), values));

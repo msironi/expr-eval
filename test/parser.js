@@ -635,4 +635,73 @@ describe('Parser', function () {
     assert.throws(function () { parser.evaluate('32 + min.bind'); }, /member access is not permitted/);
     assert.throws(function () { parser.evaluate('a.b', { a: { b: 2 } }); }, /member access is not permitted/);
   });
+
+  describe('postfix chains (member access / index / call in any order)', function () {
+    var parser = new Parser({ allowMemberAccess: true });
+    var values = {
+      f: function () { return { a: 1, arr: [10, 20], g: function () { return { b: 2 }; } }; },
+      arrf: [function () { return { x: 7 }; }],
+      list: function () { return [5, 6, 7]; },
+      curry: function () { return function () { return { z: 9 }; }; },
+      obj: { m: function () { return { n: function () { return 42; } }; } }
+    };
+
+    it('f().a', function () {
+      assert.strictEqual(parser.evaluate('f().a', values), 1);
+    });
+
+    it('f()[0] / list()[1]', function () {
+      assert.strictEqual(parser.evaluate('list()[0]', values), 5);
+      assert.strictEqual(parser.evaluate('list()[1]', values), 6);
+    });
+
+    it('f().arr[1]', function () {
+      assert.strictEqual(parser.evaluate('f().arr[1]', values), 20);
+    });
+
+    it('f().g()', function () {
+      assert.deepStrictEqual(parser.evaluate('f().g()', values), { b: 2 });
+    });
+
+    it('f().g().b', function () {
+      assert.strictEqual(parser.evaluate('f().g().b', values), 2);
+    });
+
+    it('arrf[0]().x', function () {
+      assert.strictEqual(parser.evaluate('arrf[0]().x', values), 7);
+    });
+
+    it('obj.m().n()', function () {
+      assert.strictEqual(parser.evaluate('obj.m().n()', values), 42);
+    });
+
+    it('curry()().z', function () {
+      assert.strictEqual(parser.evaluate('curry()().z', values), 9);
+    });
+
+    it('works with function call arguments, e.g. first(filter(...)).prop', function () {
+      var data = {
+        // 'first' is not a built-in function; supply it like a host application (e.g. EDG) would.
+        first: function (arr) { return arr[0]; },
+        legs: [
+          { dir: 'Rec', id: 'a' },
+          { dir: 'Pay', id: 'b' }
+        ]
+      };
+      assert.strictEqual(parser.evaluate('first(filter(fn(leg) = leg.dir == "Pay", legs)).id', data), 'b');
+    });
+
+    it('keeps the existing parenthesised form working', function () {
+      assert.strictEqual(parser.evaluate('(f()).a', values), 1);
+    });
+
+    it('chained postfix results can be used in larger expressions', function () {
+      assert.strictEqual(parser.evaluate('f().a + f().arr[0] * 2', values), 21);
+    });
+
+    it('should still disallow member access after a call when allowMemberAccess is false', function () {
+      var strict = new Parser({ allowMemberAccess: false });
+      assert.throws(function () { strict.parse('f().a'); }, /member access is not permitted/);
+    });
+  });
 });

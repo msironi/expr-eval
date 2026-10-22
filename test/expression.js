@@ -380,6 +380,84 @@ describe('Expression', function () {
           const parser = new Parser({ operators: { coalesce: false } });
           assert.throws(() => parser.evaluate('1 ?? 2'), /Unknown character/);
         });
+
+        describe('short-circuit evaluation', () => {
+          function makeParser() {
+            const p = new Parser();
+            p.calls = [];
+            p.functions.sideEffect = function (v) {
+              p.calls.push(v);
+              return v;
+            };
+            return p;
+          }
+
+          it('should not evaluate the right operand when the left is defined', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('5 ?? sideEffect(99)'), 5);
+            assert.deepStrictEqual(p.calls, []);
+          });
+
+          it('should not evaluate the right operand when the left variable is defined', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('x ?? sideEffect(99)', { x: 'abc' }), 'abc');
+            assert.deepStrictEqual(p.calls, []);
+          });
+
+          it('should treat falsy-but-defined left operands (0, "", false) as defined', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('x ?? sideEffect(99)', { x: 0 }), 0);
+            assert.strictEqual(p.evaluate('x ?? sideEffect(99)', { x: '' }), '');
+            assert.strictEqual(p.evaluate('x ?? sideEffect(99)', { x: false }), false);
+            assert.deepStrictEqual(p.calls, []);
+          });
+
+          it('should evaluate the right operand when the left is undefined', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('x ?? sideEffect(99)', { x: undefined }), 99);
+            assert.deepStrictEqual(p.calls, [99]);
+          });
+
+          it('should evaluate the right operand when the left is null, Infinity or NaN', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('x ?? sideEffect(1)', { x: null }), 1);
+            assert.strictEqual(p.evaluate('x ?? sideEffect(2)', { x: Infinity }), 2);
+            assert.strictEqual(p.evaluate('x ?? sideEffect(3)', { x: NaN }), 3);
+            assert.deepStrictEqual(p.calls, [1, 2, 3]);
+          });
+
+          it('should evaluate the right operand only once', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('x ?? sideEffect(7)', { x: undefined }), 7);
+            assert.strictEqual(p.calls.length, 1);
+          });
+
+          it('should short-circuit a chain of ?? at the first defined operand', () => {
+            const p = makeParser();
+            assert.strictEqual(p.evaluate('a ?? b ?? sideEffect(3)', { a: undefined, b: 2 }), 2);
+            assert.deepStrictEqual(p.calls, []);
+          });
+
+          it('should support the "validate or fail" pattern x ?? invalid(...)', () => {
+            const p = new Parser();
+            const invalidCalls = [];
+            p.functions.invalid = function (msg, dflt) {
+              invalidCalls.push(msg);
+              return dflt;
+            };
+            assert.strictEqual(p.evaluate('nm ?? invalid("not derivable", undefined)', { nm: 'BDFD2S6' }), 'BDFD2S6');
+            assert.deepStrictEqual(invalidCalls, []);
+            assert.strictEqual(p.evaluate('nm ?? invalid("not derivable", undefined)', { nm: undefined }), undefined);
+            assert.deepStrictEqual(invalidCalls, ['not derivable']);
+          });
+
+          it('should still work when the right operand is asynchronous', async () => {
+            const p = new Parser();
+            p.functions.later = (v) => Promise.resolve(v);
+            assert.strictEqual(await p.evaluate('x ?? later(5)', { x: undefined }), 5);
+            assert.strictEqual(await p.evaluate('x ?? later(5)', { x: 1 }), 1);
+          });
+        });
       });
 
       describe('as operator', () => {

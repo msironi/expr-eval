@@ -249,7 +249,15 @@ ParserState.prototype.parseCoalesceExpression = function (instr) {
   this.parseFactor(instr);
   while (this.accept(TOP, COALESCE_OPERATORS)) {
     var op = this.current;
-    this.parseFactor(instr);
+    if (op.value === '??') {
+      // The right operand of ?? is wrapped in an IEXPR so that the evaluator can skip evaluating it
+      // (short-circuit) when the left operand is defined.
+      var rightBranch = [];
+      this.parseFactor(rightBranch);
+      instr.push(new Instruction(IEXPR, rightBranch));
+    } else {
+      this.parseFactor(instr);
+    }
     instr.push(binaryInstruction(op.value));
   }
 };
@@ -308,14 +316,48 @@ ParserState.prototype.parseFunctionCall = function (instr) {
     this.parseAtom(instr);
     instr.push(unaryInstruction(op.value));
   } else {
-    this.parseMemberExpression(instr);
-    while (this.accept(TPAREN, '(')) {
+    this.parseAtom(instr);
+    this.parsePostfixChain(instr);
+  }
+};
+
+/**
+ * Parses a chain of member accesses (.name), index operations ([expr]) and function calls
+ * ((args)) that follow an atom.  These may appear in any order and any number of times; for
+ * example: f().a, f()[0], f().g().b, arr[0]().x.
+ */
+ParserState.prototype.parsePostfixChain = function (instr) {
+  for (;;) {
+    if (this.accept(TOP, '.')) {
+      if (!this.allowMemberAccess) {
+        throw new Error('unexpected ".", member access is not permitted');
+      }
+
+      // If the allowStringMembers option is enabled then we allow string literals to be used as member names
+      // in addition to bare identifiers. This allows for expressions like foo."bar-baz" to work.
+      if (this.nextToken.type === TSTRING && this.allowStringMembers) {
+        this.expect(TSTRING);
+      } else {
+        this.expect(TNAME);
+      }
+      instr.push(new Instruction(IMEMBER, this.current.value));
+    } else if (this.accept(TBRACKET, '[')) {
+      if (!this.tokens.isOperatorEnabled('[')) {
+        throw new Error('unexpected "[]", arrays are disabled');
+      }
+
+      this.parseExpression(instr);
+      this.expect(TBRACKET, ']');
+      instr.push(binaryInstruction('['));
+    } else if (this.accept(TPAREN, '(')) {
       if (this.accept(TPAREN, ')')) {
         instr.push(new Instruction(IFUNCALL, 0));
       } else {
         var argCount = this.parseArgumentList(instr);
         instr.push(new Instruction(IFUNCALL, argCount));
       }
+    } else {
+      break;
     }
   }
 };
@@ -333,38 +375,6 @@ ParserState.prototype.parseArgumentList = function (instr) {
   }
 
   return argCount;
-};
-
-ParserState.prototype.parseMemberExpression = function (instr) {
-  this.parseAtom(instr);
-  while (this.accept(TOP, '.') || this.accept(TBRACKET, '[')) {
-    var op = this.current;
-
-    if (op.value === '.') {
-      if (!this.allowMemberAccess) {
-        throw new Error('unexpected ".", member access is not permitted');
-      }
-
-      // If the allowStringMembers option is enabled then we allow string literals to be used as member names
-      // in addition to bare identifiers. This allows for expressions like foo."bar-baz" to work.
-      if (this.nextToken.type === TSTRING && this.allowStringMembers) {
-        this.expect(TSTRING);
-      } else {
-        this.expect(TNAME);
-      }
-      instr.push(new Instruction(IMEMBER, this.current.value));
-    } else if (op.value === '[') {
-      if (!this.tokens.isOperatorEnabled('[')) {
-        throw new Error('unexpected "[]", arrays are disabled');
-      }
-
-      this.parseExpression(instr);
-      this.expect(TBRACKET, ']');
-      instr.push(binaryInstruction('['));
-    } else {
-      throw new Error('unexpected symbol: ' + op.value);
-    }
-  }
 };
 
 ParserState.prototype.parseKeywordExpression = function (instr) {
